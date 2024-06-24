@@ -1,0 +1,127 @@
+######################################################
+#     제이플라츠 와바 점심메뉴 크롤링 프로그램       #
+#                   2024.06.13                       #
+#                   Made by SDH                      #
+######################################################
+
+import os  # 추가된 모듈
+import urllib.request
+import datetime
+import keyboard
+from datetime import timedelta
+import tkinter.messagebox as msgbox
+from tkinter import *
+from selenium import webdriver
+from selenium.webdriver.edge import service
+from selenium.webdriver.common.by import By
+import time as sleeptime
+
+time_togo = 20
+today_real = datetime.date.today()
+today_edit = today_real - timedelta(days=1)  # 어제 날짜 가져오기
+str_today = today_edit.strftime("%B %d, %Y")
+str_today_real = today_real.strftime("%B %d, %Y")
+print(str_today_real,"( 인스타 상 날짜 : ", str_today, ")")
+now = datetime.datetime.now()
+
+#11시 전까지 대기
+while True:
+    now = datetime.datetime.now()
+    print(now.strftime("%H:%M"))
+    if now.hour != 11:
+        print("11시 전까지 대기")
+        if now.minute < time_togo:
+            sleeptime.sleep(3600)
+        else:
+            sleeptime.sleep(1200)
+    else:
+        break
+
+# Selenium 옵션 설정
+options = webdriver.EdgeOptions()
+options.add_experimental_option('excludeSwitches', ['enable-logging'])
+options.use_chromium = True
+options.add_experimental_option("detach", True)
+
+# Edge 파일 위치 설정
+s = service.Service(r"C:\Users\24006\Desktop\edgedriver_win64\msedgedriver.exe")
+
+# Edge 드라이버 생성
+driver = webdriver.Edge(service=s)
+url = "https://www.instagram.com/wabar_lunch/"
+driver.get(url)
+print("페이지 오픈됨.")
+sleeptime.sleep(5)
+
+while True:
+    error_msg = driver.find_element(By.TAG_NAME, "svg").get_attribute("aria-label")
+
+    if error_msg == "오류":
+        if now.minute > time_togo:
+            break
+        else:
+            iserror = True
+            i = 1
+            while iserror:
+                now = datetime.datetime.now()
+                print(now.strftime("%H:%M"), ", %d 번째 시도..." % i)
+                sleeptime.sleep(55)
+                driver.refresh()
+                sleeptime.sleep(5)
+                try:
+                    error_msg = driver.find_element(By.TAG_NAME, "svg").get_attribute("aria-label")
+                except:
+                    error_msg = ""
+
+                if error_msg != "오류":
+                    print("오류 해결됨.")
+                    iserror = False
+                    break
+                else:
+                    i += 1
+
+    else:
+        while True:
+            if now.minute > time_togo:
+                break
+            else:
+                sleeptime.sleep(5)
+                image_element = driver.find_element(By.CLASS_NAME, "_aagv")
+                image_element_sub = image_element.find_element(By.TAG_NAME, "img")
+                image_alt = image_element_sub.get_attribute("alt")
+                image = image_element_sub.get_attribute("src")
+                print("이미지 설명 : " + image_alt)
+    
+                if image_alt.find(str_today) > 0:
+                    print(image_alt)
+                    file_name = 'waba_menu_' + str_today_real + '.jpg'
+                    file_path = r'C:\Users\24006\Desktop\\' + file_name
+    
+                    #이미지 다운로드가 정상적이지 않다면, cmd에서 출력되는 이미지 링크로 접근해보세요.
+                    #print("이미지 링크 : " + image)
+                    print(image)
+    
+                    # 이미지 저장 후 사용자 응답 처리 부분
+                    response = msgbox.askyesnocancel(title="메뉴 찾기 완료", message="오늘 메뉴를 찾았습니다. 저장할까요?")
+                    if response == True:  # 사용자가 확인을 선택한 경우 이미지 열기
+                        urllib.request.urlretrieve(image, file_path)
+                        os.startfile(file_path)  # 이미지를 시스템 기본 프로그램으로 열기
+                        break
+                    elif response == False:  # 사용자가 취소를 선택한 경우 5초 후 종료
+                        response2 = msgbox.askyesno(title="종료 확인",message ="확인을 누르면 5초 뒤 종료됩니다...")
+                        if response2 == True:
+                            sleeptime.sleep(5)
+                            break  # 루프 종료
+                        else:
+                            print("메뉴를 다시 불러옵니다...")
+                            continue
+                else:
+                    print("업데이트 안됨. 1분 뒤 재확인")
+                    sleeptime.sleep(60)
+                    driver.refresh()
+    break
+                    
+print("종료하려면 엔터키를 누르세요.")
+keyboard.read_key()
+driver.quit()
+exit()
